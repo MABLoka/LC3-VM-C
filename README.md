@@ -25,19 +25,15 @@ Compilation
 
 To compile the project, run the following command using your C compiler:
 
-bash
-
-gcc lc3.c -o lc3_vm
+    gcc lc3.c -o lc3_vm
 
 This will create an executable named lc3_vm.
 Running the Virtual Machine
 
 The virtual machine expects one or more LC-3 machine code image files as input. These image files contain the machine instructions to be loaded into memory. To run the virtual machine with an image file:
 
-bash
-
-lc3_vm [image-file1]
+    lc3_vm [image-file1]
 
 For example:
 
-lc3_vm program.obj
+    lc3_vm program.obj
