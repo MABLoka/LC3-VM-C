@@ -8,6 +8,11 @@
 //Memory Storage
 #define MEMORY_MAX (1 << 16) //Maximum amount of memory location in the LC-3. 65536
 
+int DEBUG = 0; //Activate to enter debugging mode
+
+int *breakpoints; //Store the locaiton of breakpoints
+int num_breakpoints = 0; //Indicates the number of break points
+
 uint16_t memory[MEMORY_MAX]; //Used to simulatate the memory storage of the machine
 
 //Registers
@@ -153,25 +158,30 @@ void update_flags(uint16_t r){
 }
 
 
-// Read Imager File
+// Read Image File
 
 void read_image_file(FILE* file)
 {
-    // the origin tells us where in memory to place the image
+    
     uint16_t origin;
     fread(&origin, sizeof(origin), 1, file);
     origin = swap16(origin);
 
-    // we know the maximum file size so we only need one fread
+    
     uint16_t max_read = MEMORY_MAX - origin;
     uint16_t* p = memory + origin;
     size_t read = fread(p, sizeof(uint16_t), max_read, file);
 
-    // swap to little endian
-    while (read-- > 0)
+    
+    for(int i = 0; i < read; i++)
     {
+        
         *p = swap16(*p);
+        if(DEBUG){
+            printf("Memory[0x%04X] = 0x%04X\n", origin + i, *p );
+        }
         ++p;
+        
     }
 }
 
@@ -218,6 +228,7 @@ uint16_t mem_read(uint16_t address)
 int main(int argc, const char* argv[]){
     
     //Load Arguments
+    
     if (argc < 2){
         // Confirm usage
         printf("lc3 [image-file1] ...\n");
@@ -225,7 +236,11 @@ int main(int argc, const char* argv[]){
     }
 
     for (int j = 1; j < argc; ++j){
-        if (!read_image(argv[j]))
+        if(strcmp(argv[j], "debug") == 0){
+            DEBUG = 1;
+            continue;
+        }
+        else if (!read_image(argv[j]) && j>1)
         {
             printf("failed to load image: %s\n", argv[j]);
             exit(1);
@@ -242,13 +257,42 @@ int main(int argc, const char* argv[]){
     int PC_START = 0x3000;
     reg[R_PC] = PC_START; // set the program counter to 0x3000
 
+
+    if(DEBUG){
+        
+        printf("Enter the number of breakpoints: ");
+        scanf("%d", &num_breakpoints);
+
+        breakpoints = malloc(num_breakpoints * sizeof(int));
+
+        for (int i = 0; i < num_breakpoints; i++) {
+            printf("Enter location for breakpoint %d: 0x", i + 1);
+            scanf("%04x", &breakpoints[i]);
+        }
+    }
     int running = 1;
     while(running){
 
         //Fetch instruction from memory
         uint16_t instr = mem_read(reg[R_PC]++);
         uint16_t op = instr >> 12; //get the op from the instr
+        
+        if(DEBUG){
+            for (int i = 0; i < num_breakpoints; i++) {
 
+                if(reg[R_PC] - 1 == breakpoints[i]){
+                    printf("Breakpoint reached.\n");
+                    printf("Fetching nex instruction...\nExecuting Instruction:  0x%04X, OP: 0x%01X, PC: 0x%04X\n", instr, op, reg[R_PC] - 1);
+                    printf("Press enter 1 to continue: ");
+                    char ch = ' ';
+                    while(ch != '1') ch =getc(stdin);
+
+                }
+                
+            }
+            
+        }
+       
         switch (op){
             case OP_ADD:
                 {
@@ -411,7 +455,7 @@ int main(int argc, const char* argv[]){
 
                 {
                     reg[R_R7] = reg[R_PC];
-
+                    
                     switch (instr & 0xFF)
                     {
                         case TRAP_GETC:
